@@ -1,6 +1,7 @@
 package main
 
 import (
+  "fmt"
   "os"
   "log"
   "flag"
@@ -21,9 +22,13 @@ var wg sync.WaitGroup
 var list []Article
 
 func main() {
-  tmpPtr := flag.String("template", "template.html", "path to template file")
-  jsonFlag := flag.Bool("json", false, "output JSON instead")
+  tmpPtr := flag.String("template", "", "path to template file")
   flag.Parse()
+
+  flag.Usage = func() {
+    fmt.Fprintf(os.Stderr, "Usage: %s [options] url1 url2 ... urlN\n", os.Args[0])
+    flag.PrintDefaults()
+  }
 
   /**
    * Section Flag
@@ -45,7 +50,7 @@ func main() {
 
   wg.Wait()
 
-  if *jsonFlag == true {
+  if len(*tmpPtr) == 0 {
     b, _ := json.Marshal(list)
     os.Stdout.Write(b)
   } else {
@@ -70,3 +75,4 @@ func check(e error) {
     log.Fatal(e)
   }
 }
+
