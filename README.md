@@ -8,10 +8,10 @@ This program aggregates meta information from mcclatchy-based articles and print
 ### Options
 
 `-template [path]`  
-Pass a path to a template file and slush will pass all articles as an .Articles object. 
+Pass a path to a template file and slush will pass the list of articles. 
 
 `-section`  
 The section flag will pull all stories listed on a section page.
 
 `-body`  
-By default the JSON feed will not include the body. Adding this flag swaps that behavior
+By default the JSON feed will not include the body. Adding this flag swaps that behavior.
