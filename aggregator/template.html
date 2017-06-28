@@ -1,9 +1,0 @@
-<article>
-  {{ with .Photo -}}
-  <figure>
-    <img src="{{ .Url }}">
-    {{ with .Caption }}<figcaption>{{.}}</figcaption>{{ end }}
-  </figure>
-  {{- end }}
-  <h1><a href="{{ .Meta.Url }}">{{ .Meta.Title }}</a></h1>
-</article>

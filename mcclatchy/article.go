@@ -10,12 +10,14 @@ import (
   _ "image/jpeg"
 
   "github.com/PuerkitoBio/goquery"
+  "github.com/tdewolff/minify"
+  "github.com/tdewolff/minify/html"
 )
 
 type Article struct {
   Meta MetaData `json:"meta"`
   Photo Photo `json:"photo"`
-  Body string `json:"body"`
+  Body string `json:"body,omitempty"`
 }
 
 type MetaData struct {
@@ -46,10 +48,12 @@ type PhotoSource struct {
  * Gets Meta information from a goquery document
  */
 
-func ParseArticle(doc *goquery.Document) (article Article) {
+func ParseArticle(doc *goquery.Document, body bool) (article Article) {
   article.Meta = ArticleMeta(doc)
   article.Photo = ArticlePhoto(doc)
-  article.Body = ArticleBody(doc)
+  if(body) {
+    article.Body = ArticleBody(doc)
+  }
   return
 }
 
@@ -105,8 +109,13 @@ func ArticlePhoto(doc *goquery.Document) (photo Photo) {
  */
 
 func ArticleBody(doc *goquery.Document) string {
-  html, _ := doc.Find("[id^=content-body]").Html()
-  return html
+  raw, _ := doc.Find("[id^=content-body]").Html()
+
+  m := minify.New()
+  m.Add("text/html", &html.Minifier{ KeepEndTags: true })
+
+  min, _ := m.String("text/html", raw)
+  return min
 }
 
 /**
