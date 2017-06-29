@@ -53,9 +53,8 @@ func main() {
     enc.SetEscapeHTML(false)
     enc.Encode(list)
   } else {
-    tmpl, err := template.ParseFiles(*tmpPtr)
-    check(err)
-    tmpl.Execute(os.Stdout, list)
+    tpl := template.Must(template.New("main").ParseGlob(*tmpPtr))
+    tpl.ExecuteTemplate(os.Stdout, *tmpPtr, list)
   }
 }
 

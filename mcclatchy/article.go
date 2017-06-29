@@ -41,7 +41,6 @@ type Photo struct {
 
 type PhotoSource struct {
   Url string `json:"url"`
-  Width int `json:"width"`
 }
 
 /**
@@ -82,7 +81,7 @@ func ArticleMeta(doc *goquery.Document) (meta MetaData) {
 func ArticlePhoto(doc *goquery.Document) (photo Photo) {
   photo.Url, _ = doc.Find("meta[property='og:image']").Attr("content")
   if len(photo.Url) > 0 {
-    photo.Width, photo.Height = PhotoDimensions(photo.Url)
+    photo.Width, photo.Height = photo.Dimensions()
   }
 
   leadArt := doc.Find(".lead-item picture")
@@ -96,7 +95,6 @@ func ArticlePhoto(doc *goquery.Document) (photo Photo) {
     source.Each(func(i int, sel *goquery.Selection) {
       var s PhotoSource
       s.Url, _ = sel.Attr("srcset")
-      s.Width = sourceWidth(s.Url)
       photo.Sizes = append(photo.Sizes, s)
     })
   }
@@ -122,19 +120,34 @@ func ArticleBody(doc *goquery.Document) string {
  * Fetches dimensions for a remote photo
  */
 
-func PhotoDimensions(url string) (int, int) {
-  resp, _ := http.Get(url)
+func (p Photo) Dimensions() (int, int) {
+  resp, _ := http.Get(p.Url)
   img, _, _ := image.DecodeConfig(resp.Body)
   return img.Width, img.Height
 }
 
 /**
- * Helpers
+ * Gets the url for the smallest image size
  */
 
-func sourceWidth(url string) (w int) {
+func (p Photo) Smallest() PhotoSource {
+  match := p.Sizes[0]
+  for i := 1; i < len(p.Sizes); i++ {
+    s := p.Sizes[i]
+    if s.Width() < match.Width() {
+      match = s
+    }
+  }
+  return match
+}
+
+/**
+ * Finds the width of a photo via the url
+ */
+
+func (ps PhotoSource) Width() (w int) {
   r, _ := regexp.Compile("/FREE_([0-9]+)/")
-  match := r.FindStringSubmatch(url)
+  match := r.FindStringSubmatch(ps.Url)
   w, _ = strconv.Atoi(match[1])
   return
 }
