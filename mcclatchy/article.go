@@ -1,10 +1,12 @@
 package mcclatchy
 
 import (
+  "fmt"
   "regexp"
   "time"
   "encoding/json"
   "net/http"
+  "strings"
   "strconv"
 
   "image"
@@ -18,7 +20,7 @@ import (
 type Article struct {
   Meta MetaData `json:"meta"`
   Photo Photo `json:"photo"`
-  Video Video `json:"video"`
+  Video Video `json:"video,omitempty"`
   Body string `json:"body,omitempty"`
 }
 
@@ -38,7 +40,7 @@ type Photo struct {
   Url string `json:"url"`
   Width int `json:"width"`
   Height int `json:"height"`
-  Sizes []PhotoSource `json:"sizes,omitempty"`
+  Sizes []PhotoSource `json:"sizes"`
 }
 
 type PhotoSource struct {
@@ -126,7 +128,9 @@ func ArticlePhoto(doc *goquery.Document) (photo Photo) {
 
    wrapper := doc.Find(".video-media[data-id]")
    match := r.FindStringSubmatch(wrapper.Text())
-   json.Unmarshal([]byte(match[1]), &video)
+   if len(match) > 1 {
+     json.Unmarshal([]byte(match[1]), &video)
+   }
    return
  }
 
@@ -155,18 +159,38 @@ func (p Photo) Dimensions() (int, int) {
 }
 
 /**
+ * Returns a srcset
+ */
+
+func (p Photo) Srcset() (s string) {
+  if len(p.Sizes) > 0 {
+    sizes := []string{}
+    for _, size := range p.Sizes {
+      str := fmt.Sprintf("%s %dw", size.Url, size.Width())
+      sizes = append(sizes, str)
+    }
+    s = strings.Join(sizes, ",")
+  }
+  return
+}
+
+/**
  * Gets the url for the smallest image size
  */
 
-func (p Photo) Smallest() PhotoSource {
-  match := p.Sizes[0]
-  for i := 1; i < len(p.Sizes); i++ {
-    s := p.Sizes[i]
-    if s.Width() < match.Width() {
-      match = s
+func (p Photo) Smallest() (match PhotoSource) {
+  if len(p.Sizes) > 0 {
+    match = p.Sizes[0]
+    for i := 1; i < len(p.Sizes); i++ {
+      s := p.Sizes[i]
+      if s.Width() < match.Width() {
+        match = s
+      }
     }
+  } else {
+    match.Url = p.Url
   }
-  return match
+  return
 }
 
 /**
@@ -174,9 +198,11 @@ func (p Photo) Smallest() PhotoSource {
  */
 
 func (ps PhotoSource) Width() (w int) {
-  r, _ := regexp.Compile(`/FREE_([0-9]+)/`)
+  r, _ := regexp.Compile(`/(FREE|LANDSCAPE)_([0-9]+)/`)
   match := r.FindStringSubmatch(ps.Url)
-  w, _ = strconv.Atoi(match[1])
+  if len(match) > 0 {
+    w, _ = strconv.Atoi(match[2])
+  }
   return
 }
 
