@@ -3,6 +3,7 @@ package mcclatchy
 import (
   "regexp"
   "time"
+  "encoding/json"
   "net/http"
   "strconv"
 
@@ -17,6 +18,7 @@ import (
 type Article struct {
   Meta MetaData `json:"meta"`
   Photo Photo `json:"photo"`
+  Video Video `json:"video"`
   Body string `json:"body,omitempty"`
 }
 
@@ -36,11 +38,22 @@ type Photo struct {
   Url string `json:"url"`
   Width int `json:"width"`
   Height int `json:"height"`
-  Sizes []PhotoSource `json:"sizes"`
+  Sizes []PhotoSource `json:"sizes,omitempty"`
 }
 
 type PhotoSource struct {
   Url string `json:"url"`
+}
+
+type Video struct {
+  Id string `json:"id"`
+  Url string `json:"url"`
+  Duration string `json:"duration"`
+  Image string `json:"image"`
+  Videographer string `json:"videographer"`
+  Credit string `json:"credit"`
+  Title string `json:"description"`
+  Caption string `json:"displayDescription"`
 }
 
 /**
@@ -50,6 +63,7 @@ type PhotoSource struct {
 func ParseArticle(doc *goquery.Document, body bool) (article Article) {
   article.Meta = ArticleMeta(doc)
   article.Photo = ArticlePhoto(doc)
+  article.Video = ArticleVideo(doc)
   if(body) {
     article.Body = ArticleBody(doc)
   }
@@ -103,6 +117,20 @@ func ArticlePhoto(doc *goquery.Document) (photo Photo) {
 }
 
 /**
+ * Retrieves the lead video asset
+ */
+
+ func ArticleVideo(doc *goquery.Document) (video Video) {
+   // This is totally hacked in Vim and is not stable
+   r := regexp.MustCompile(`(?m)return video\((\{.*\}\]\}\]\}), `)
+
+   wrapper := doc.Find(".video-media[data-id]")
+   match := r.FindStringSubmatch(wrapper.Text())
+   json.Unmarshal([]byte(match[1]), &video)
+   return
+ }
+
+/**
  * Retrieves the body of the story
  */
 
@@ -146,7 +174,7 @@ func (p Photo) Smallest() PhotoSource {
  */
 
 func (ps PhotoSource) Width() (w int) {
-  r, _ := regexp.Compile("/FREE_([0-9]+)/")
+  r, _ := regexp.Compile(`/FREE_([0-9]+)/`)
   match := r.FindStringSubmatch(ps.Url)
   w, _ = strconv.Atoi(match[1])
   return
