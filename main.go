@@ -2,11 +2,13 @@ package main
 
 import (
   "fmt"
+  "path"
   "os"
   "log"
   "flag"
   "encoding/json"
   "text/template"
+  "regexp"
   "sync"
 
   "github.com/PuerkitoBio/goquery"
@@ -53,14 +55,29 @@ func main() {
     enc.SetEscapeHTML(false)
     enc.Encode(list)
   } else {
-    tpl := template.Must(template.New("main").ParseGlob(*tmpPtr))
-    tpl.ExecuteTemplate(os.Stdout, *tmpPtr, list)
+    tpl := template.Must(template.ParseFiles(*tmpPtr))
+    err := tpl.ExecuteTemplate(os.Stdout, path.Base(*tmpPtr), list)
+    check(err)
   }
 }
 
 func fetch(url string, slot int, body bool) {
   defer wg.Done()
-  doc, _ := goquery.NewDocument(url)
+  var doc *goquery.Document
+  var err error
+
+  r := regexp.MustCompile(`^https?:\/\/`)
+  if r.MatchString(url) {
+    doc, err = goquery.NewDocument(url)
+    check(err)
+  } else {
+    file, err := os.Open(url)
+    check(err)
+
+    doc, err = goquery.NewDocumentFromReader(file)
+    check(err)
+  }
+
   list[slot] = mcclatchy.ParseArticle(doc, body)
 }
 
