@@ -2,27 +2,17 @@ package main
 
 import (
   "fmt"
-  "path"
   "os"
   "log"
   "flag"
   "encoding/json"
-  "text/template"
-  "regexp"
-  "sync"
-
-  "github.com/PuerkitoBio/goquery"
-  "github.com/pilgreen/slush/mcclatchy"
+  "github.com/pilgreen/slush/article"
 )
 
-var wg sync.WaitGroup
-var list []mcclatchy.Article
-
 func main() {
-  var links []string
+  var out []byte
+  var err error
 
-  tmpPtr := flag.String("template", "", "path to golang template file")
-  secPtr := flag.Bool("section", false, "pull all stories for a section")
   bodyPtr := flag.Bool("body", false, "include the body html")
   flag.Parse()
 
@@ -36,49 +26,27 @@ func main() {
     os.Exit(1)
   }
 
-  links = flag.Args()
-  if *secPtr {
-    doc, _ := goquery.NewDocument(links[0])
-    links = mcclatchy.SectionLinks(doc)
-  }
+  args := flag.Args()
+  list := make([]article.Article, len(args))
+  ch := make(chan article.Article, len(list))
 
-  list = make([]mcclatchy.Article, len(links))
-  for i, url := range links {
-    wg.Add(1)
-    go fetch(url, i, *bodyPtr)
-  }
-
-  wg.Wait()
-
-  if len(*tmpPtr) == 0 {
-    enc := json.NewEncoder(os.Stdout)
-    enc.SetEscapeHTML(false)
-    enc.Encode(list)
-  } else {
-    tpl := template.Must(template.ParseFiles(*tmpPtr))
-    err := tpl.ExecuteTemplate(os.Stdout, path.Base(*tmpPtr), list)
+  for i, url := range args {
+    a, err := article.Fetch(url, *bodyPtr)
     check(err)
+
+    ch <- a
+    list[i] = <-ch
   }
-}
 
-func fetch(url string, slot int, body bool) {
-  defer wg.Done()
-  var doc *goquery.Document
-  var err error
-
-  r := regexp.MustCompile(`^https?:\/\/`)
-  if r.MatchString(url) {
-    doc, err = goquery.NewDocument(url)
+  if len(args) == 1 {
+    out, err = json.Marshal(list[0])
     check(err)
   } else {
-    file, err := os.Open(url)
-    check(err)
-
-    doc, err = goquery.NewDocumentFromReader(file)
+    out, err = json.Marshal(list)
     check(err)
   }
 
-  list[slot] = mcclatchy.ParseArticle(doc, body)
+  os.Stdout.Write(out)
 }
 
 func check(e error) {
